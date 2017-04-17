@@ -2,14 +2,14 @@
 #include <vector>
 #include <string>
 #include <iostream>
-
-#include "boost/graph/adjacency_list.hpp"
+#include <shared_mutex>
 
 #include "crow.h"
 
-using namespace boost;
+#include "state.h"
 
-typedef adjacency_list<vecS, vecS, bidirectionalS> Graph;
+
+using namespace boost;
 
 template <typename T>
 std::string join(const T& v, const std::string& delim) {
@@ -24,63 +24,43 @@ std::string join(const T& v, const std::string& delim) {
 }
 
 
-std::pair<bool, size_t> getOrInsertNode(const std::string& nodeName, std::vector<std::string>& nodes) {
-    auto index = std::find(nodes.begin(), nodes.end(), nodeName);
-    if (index == nodes.end()) {
-        nodes.push_back(nodeName);
-        // inserted
-        return std::make_pair(true, nodes.size());
-    }
-    // no new node
-    return std::make_pair(false, index - nodes.begin());
-}
-
-
-int main()
-{
+int main() {
     crow::SimpleApp app;
 
-    Graph graph;
-    std::vector<std::string> nodes;
+    State state;
 
-    CROW_ROUTE(app, "/nodes")([&nodes](){
+    CROW_ROUTE(app, "/nodes")([&state](){
          crow::json::wvalue resp;
-         resp["nodes"] = nodes;
+         resp["nodes"] = state.getNodes();
          return resp;
      });
 
-    CROW_ROUTE(app, "/edges").methods("POST"_method)
-        ([&nodes, &graph](const crow::request& req){
-         auto doc = crow::json::load(req.body);
+    CROW_ROUTE(app, "/edges")
+    .methods("POST"_method, "GET"_method)([&state](const crow::request& req){
+        crow::json::wvalue resp;
+        if (req.method == "POST"_method) {
+            // std::cout << req.body << std::endl;
+            auto doc = crow::json::load(req.body);
 
-         crow::json::wvalue resp;
+            if (!doc) {
+                resp["status"] = 400;
+                return resp;
+            }
 
-         if (!doc) {
-             resp["status"] = 400;
-             return resp;
-         }
+            std::string in = doc["in"].s();
+            std::string out = doc["out"].s();
 
-         std::vector<std::string> nodesCreated;
+            auto result = state.addEdge(in, out);
 
-         std::string in = doc["in"].s();
-         std::string out = doc["out"].s();
-
-         auto inNode = getOrInsertNode(in, nodes);
-         auto outNode = getOrInsertNode(out, nodes);
-
-         if (inNode.first) {
-            nodesCreated.push_back(in);
-         }
-
-         if (outNode.first) {
-            nodesCreated.push_back(out);
-         }
-
-         auto res = add_edge(inNode.second, outNode.second, graph);
-
-         resp["new_nodes"] = nodesCreated;
-         //resp["edge"] = res;
-         return resp;
+            //resp["new_nodes"] = nodesCreated;
+            resp["source"] = result.first.m_source;
+            resp["target"] = result.first.m_target;
+            resp["created"] = result.second;
+        }
+        else if (req.method == "GET"_method) {
+            resp["edges"] = {"a", "b"};
+        }
+        return resp;
     });
 
     app.port(18080).multithreaded().run();

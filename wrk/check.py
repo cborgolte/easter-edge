@@ -1,4 +1,5 @@
 import requests
+#import nodes
 
 """
 Run this script after running wrk.sh to validate that all nodes were
@@ -6,6 +7,8 @@ generated.
 """
 
 nodes = requests.get('http://localhost:18080/nodes').json()
+#nodes = nodes.nodes
+
 
 arr = nodes['nodes']
 

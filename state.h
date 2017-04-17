@@ -37,9 +37,9 @@ class State {
 
 	private:
 	std::pair<bool, size_t> getOrInsertNode(const std::string& nodeName) {
+		std::lock_guard<std::shared_timed_mutex> guard(mutexNodes);
 		auto index = std::find(nodes.begin(), nodes.end(), nodeName);
 		if (index == nodes.end()) {
-			std::lock_guard<std::shared_timed_mutex> guard(mutexNodes);
 			nodes.emplace_back(nodeName);
 			// inserted
 			return std::make_pair(true, nodes.size() - 1);

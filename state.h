@@ -13,7 +13,6 @@ typedef graph_traits<Graph>::edge_descriptor Edge;
 
 class State {
 
-
 	private:
 
 	std::shared_timed_mutex mutexNodes; // protects the nodes vector
@@ -32,6 +31,26 @@ class State {
 	auto getNodes() {
 		std::shared_lock<std::shared_timed_mutex> lock(mutexNodes);
 		return std::vector<std::string>(nodes);
+	}
+
+	auto getEdges() {
+		std::shared_lock<std::shared_timed_mutex> lock(mutexGraph);
+		auto eds = edges(graph);
+		//std::vector<std::map<std::string, std::string>> edgeList;
+		//for (auto it = eds.first; it != eds.second; ++it) {
+		//	std::map<std::string, std::string> entry;
+		//	entry["target"] = nodes[(*it).m_target];
+		//	entry["source"] = nodes[(*it).m_source];
+		//	edgeList.emplace_back(entry);
+		//}
+		//return edgeList;
+		std::vector<std::string> result;
+		for (auto it = eds.first; it != eds.second; ++it) {
+			auto source(nodes[(*it).m_source]);
+			auto target(nodes[(*it).m_target]);
+			result.push_back(source + std::string(" -> ") + target);
+		}
+		return result;
 	}
 
 

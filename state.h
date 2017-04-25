@@ -28,7 +28,11 @@ class State {
 	public:
 
 	State(const State&) = delete;
-	State(){}
+	State(){
+        nodes.push_back("_dummmy1");
+        nodes.push_back("_dummmy2");
+        nodes.push_back("_dummmy3");
+    }
 
 	/**
 	 * returns a snapshot view of the existing nodes
@@ -37,6 +41,32 @@ class State {
 		std::shared_lock<std::shared_timed_mutex> lock(mutexNodes);
 		return std::vector<std::string>(nodes);
 	}
+
+	auto getNodes(const std::string& graphName) {
+        std::shared_lock<std::shared_timed_mutex> lock(mutexGraph);
+        const Graph& graph = graphs[graphName];
+        // Graph::vertex_descriptor v = 
+
+        auto vertexRange{vertices(graph)};
+
+        std::map<std::string, prop_type> result;
+        std::for_each(vertexRange.first, vertexRange.second,
+                [this, &graph, &result](auto vertex){
+                    auto nodeName = this->nodes[vertex];
+                    result[nodeName] = graph[vertex];
+                    ///prop_type properties = graph[vertex];
+                    ///std::cout << "props: " << properties.size() << std::endl;
+                    ///auto& props = result[nodeName];
+                    ///std::transform(properties.begin(), properties.end(),
+                    ///        std::inserter(props, props.begin()),
+                    ///        [&props](auto propIterator){
+                    ///        });
+                    ///props["A"] = "10";
+                    ///props["B"] = "20";
+                });
+        
+        return result;
+    }
 
 	auto getEdges(std::string graphName) {
 		std::shared_lock<std::shared_timed_mutex> lock(mutexGraph);
@@ -52,8 +82,8 @@ class State {
 		//return edgeList;
 		std::vector<std::string> result;
 		for (auto it = eds.first; it != eds.second; ++it) {
-			auto source(nodes[(*it).m_source]);
-			auto target(nodes[(*it).m_target]);
+			auto source{nodes[(*it).m_source]};
+			auto target{nodes[(*it).m_target]};
 			result.push_back(source + std::string(" -> ") + target);
 		}
 		return result;
@@ -75,12 +105,16 @@ class State {
 
 	private:
 	auto addEdge(const std::string& graphName, 
-            const size_t& inNode,
-            const size_t& outNode,
+            const size_t& src,
+            const prop_type& srcProps,
+            const size_t& target,
+            const prop_type& targetProps,
             const prop_type& edgeProps) {
 		std::lock_guard<std::shared_timed_mutex> guard(mutexGraph);
         Graph& graph = graphs[graphName];
-		auto res = add_edge(inNode, outNode, edgeProps, graph);
+		auto res = add_edge(src, target, edgeProps, graph);
+        graph[res.first.m_source] = srcProps;
+        graph[res.first.m_target] = targetProps;
 		return res;
 	}
 
@@ -104,6 +138,10 @@ class State {
 			nodesCreated.push_back(target);
 		}
 
-		return addEdge(graphName, srcNode.second, targetNode.second, edgeProps);
+		auto edgeDesc = addEdge(graphName, srcNode.second, srcProps, targetNode.second,
+                targetProps, edgeProps);
+        assert(nodes[edgeDesc.first.m_source] == src);
+        assert(nodes[edgeDesc.first.m_target] == target);
+        return edgeDesc;
 	}
 };

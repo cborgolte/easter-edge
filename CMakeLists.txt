@@ -23,6 +23,13 @@ add_custom_target(run
     WORKING_DIRECTORY ${CMAKE_PROJECT_DIR}
 )
 
+add_custom_target(debug
+	COMMAND lldb EasterEdge
+	DEPENDS EasterEdge
+    WORKING_DIRECTORY ${CMAKE_PROJECT_DIR}
+)
+
+
 # Add "tags" target and make my_project depending on this target.
 #### get_property(dirs DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
 #### 

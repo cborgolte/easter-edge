@@ -45,26 +45,17 @@ class State {
 	auto getNodes(const std::string& graphName) {
         std::shared_lock<std::shared_timed_mutex> lock(mutexGraph);
         const Graph& graph = graphs[graphName];
-        // Graph::vertex_descriptor v = 
-
         auto vertexRange{vertices(graph)};
 
         std::map<std::string, prop_type> result;
-        std::for_each(vertexRange.first, vertexRange.second,
+        std::for_each(
+                vertexRange.first,
+                vertexRange.second,
                 [this, &graph, &result](auto vertex){
-                    auto nodeName = this->nodes[vertex];
+                    const auto& nodeName = this->nodes[vertex];
                     result[nodeName] = graph[vertex];
-                    ///prop_type properties = graph[vertex];
-                    ///std::cout << "props: " << properties.size() << std::endl;
-                    ///auto& props = result[nodeName];
-                    ///std::transform(properties.begin(), properties.end(),
-                    ///        std::inserter(props, props.begin()),
-                    ///        [&props](auto propIterator){
-                    ///        });
-                    ///props["A"] = "10";
-                    ///props["B"] = "20";
                 });
-        
+
         return result;
     }
 

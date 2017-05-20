@@ -2,9 +2,10 @@ cmake_minimum_required (VERSION 2.6)
 project (EasterEdge)
 
 find_package( Boost 1.52 COMPONENTS system thread graph REQUIRED )
+find_package(Threads)
 include_directories( ${Boost_INCLUDE_DIR} )
 
-include_directories("../crow/crow/include")
+include_directories("../crow/include")
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++1y -pedantic -Wextra")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -16,6 +17,8 @@ target_link_libraries(EasterEdge
   ${Boost_SYSTEM_LIBRARY}
   ${Boost_REGEX_LIBRARY}
 )
+target_link_libraries(EasterEdge ${CMAKE_THREAD_LIBS_INIT})
+
 
 add_custom_target(run
 	COMMAND EasterEdge

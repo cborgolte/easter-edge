@@ -28,34 +28,50 @@ std::string join(const T& v, const std::string& delim) {
     return s.str();
 }
 
-void addEdges(size_t offset, State& state) {
+void addEdges(const std::string& graphName, size_t offset, State& state) {
+    prop_type prop;
     std::string in("in_");
     std::string out("out_");
     for (size_t i = 0; i < 7000; ++i) {
         std::string num(boost::lexical_cast<std::string>(offset + i));
-        state.addEdge(in + num, out + num);
+        state.addEdge(graphName, in + num, prop, out + num, prop, prop);
     }
 }
 
 void testConcurrency() {
     State state;
 
-    std::thread t1(addEdges, 100000, std::ref(state));
-    std::thread t2(addEdges, 200000, std::ref(state));
+    std::thread t1(addEdges, "G", 100000, std::ref(state));
+    std::thread t2(addEdges, "G", 200000, std::ref(state));
+    std::thread t3(addEdges, "GG", 300000, std::ref(state));
+    std::thread t4(addEdges, "FF", 400000, std::ref(state));
+    std::cout << "started threads" << std::endl;
     t1.join();
+    std::cout << "joined thread 1" << std::endl;
     t2.join();
+    std::cout << "joined thread 2" << std::endl;
+    t3.join();
+    std::cout << "joined thread 3" << std::endl;
+    t4.join();
+    std::cout << "joined all threads" << std::endl;
 
-    auto nodes = state.getNodes();
-    std::sort(nodes.begin(), nodes.end());
-    auto nodesEnd = std::remove_if(nodes.begin(), nodes.end(),
-            [](auto val){
-                return !(boost::starts_with(val, std::string("in_1")));
-            });
-    nodes.erase(nodesEnd, nodes.end());
+    auto nodes = state.getNodes("G");
+    std::cout << "got nodes" << std::endl;
+    auto itlow = nodes.lower_bound ("in_1");
+    std::cout << "got lower bound " << itlow->first << std::endl;
+    auto itup = nodes.upper_bound ("in_1999");
+    std::cout << "got upper bound " << itup->first << std::endl;
+    std::cout << "nodes size: " << nodes.size() << std::endl;
+    nodes.erase(itup, nodes.end());
+    nodes.erase(nodes.begin(), itlow);
+    std::cout << "erased nodes. size now:  " << nodes.size() << std::endl;
     std::vector<size_t> inNodes(nodes.size());
     std::transform(nodes.begin(), nodes.end(), inNodes.begin(),
             [](auto val){
-                return boost::lexical_cast<size_t>(val.substr(3));
+                //std::cout << "val: " << val.first << std::endl;
+                std::string value{val.first.substr(3)};
+                //std::cout << " = " << value << std::endl;
+                return boost::lexical_cast<size_t>(value);
             });
 
     crow::json::wvalue resp;

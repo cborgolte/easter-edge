@@ -13,6 +13,8 @@ typedef std::map<std::string, boost::any> prop_type;
 
 typedef adjacency_list<setS, vecS, bidirectionalS, prop_type, prop_type, prop_type> Graph;
 typedef graph_traits<Graph>::edge_descriptor Edge;
+typedef std::vector<std::string> NodeNameMap;
+typedef std::map<std::string, NodeNameMap> NodeCollection;
 
 
 class State {
@@ -23,36 +25,33 @@ class State {
 	std::shared_timed_mutex mutexGraph; // protects the graph
 
     std::map<std::string, Graph> graphs;
-	std::vector<std::string> nodes;
+	NodeCollection nodes;
 
 	public:
 
 	State(const State&) = delete;
 	State(){
-        nodes.push_back("_dummmy1");
-        nodes.push_back("_dummmy2");
-        nodes.push_back("_dummmy3");
     }
-
-	/**
-	 * returns a snapshot view of the existing nodes
-	 */
-	auto getNodes() {
-		std::shared_lock<std::shared_timed_mutex> lock(mutexNodes);
-		return std::vector<std::string>(nodes);
-	}
 
 	auto getNodes(const std::string& graphName) {
         std::shared_lock<std::shared_timed_mutex> lock(mutexGraph);
-        const Graph& graph = graphs[graphName];
-        auto vertexRange{vertices(graph)};
 
         std::map<std::string, prop_type> result;
+
+        auto graphIter = graphs.find(graphName);
+        if (graphIter == graphs.end()) {
+            return result;
+        }
+
+        const Graph& graph = graphIter->second;
+        auto vertexRange{vertices(graph)};
+        const NodeNameMap& graphNodes = nodes[graphName];
+
         std::for_each(
                 vertexRange.first,
                 vertexRange.second,
-                [this, &graph, &result](auto vertex){
-                    const auto& nodeName = this->nodes[vertex];
+                [&graphNodes, &graph, &result](auto vertex){
+                    const auto& nodeName = graphNodes[vertex];
                     result[nodeName] = graph[vertex];
                 });
 
@@ -63,18 +62,11 @@ class State {
 		std::shared_lock<std::shared_timed_mutex> lock(mutexGraph);
         const Graph& graph = graphs[graphName];
 		auto eds = edges(graph);
-		//std::vector<std::map<std::string, std::string>> edgeList;
-		//for (auto it = eds.first; it != eds.second; ++it) {
-		//	std::map<std::string, std::string> entry;
-		//	entry["target"] = nodes[(*it).m_target];
-		//	entry["source"] = nodes[(*it).m_source];
-		//	edgeList.emplace_back(entry);
-		//}
-		//return edgeList;
+        const NodeNameMap& graphNodes = nodes[graphName];
 		std::vector<std::string> result;
 		for (auto it = eds.first; it != eds.second; ++it) {
-			auto source{nodes[(*it).m_source]};
-			auto target{nodes[(*it).m_target]};
+			auto source{graphNodes[(*it).m_source]};
+			auto target{graphNodes[(*it).m_target]};
 			result.push_back(source + std::string(" -> ") + target);
 		}
 		return result;
@@ -82,16 +74,19 @@ class State {
 
 
 	private:
-	std::pair<bool, size_t> getOrInsertNode(const std::string& nodeName) {
+	std::pair<bool, size_t> getOrInsertNode(const std::string& graphName, const std::string& nodeName) {
 		std::lock_guard<std::shared_timed_mutex> guard(mutexNodes);
-		auto index = std::find(nodes.begin(), nodes.end(), nodeName);
-		if (index == nodes.end()) {
-			nodes.emplace_back(nodeName);
+
+        NodeNameMap& graphNodes = nodes[graphName];
+
+		auto index = std::find(graphNodes.begin(), graphNodes.end(), nodeName);
+		if (index == graphNodes.end()) {
+			graphNodes.emplace_back(nodeName);
 			// inserted
-			return std::make_pair(true, nodes.size() - 1);
+			return std::make_pair(true, graphNodes.size() - 1);
 		}
 		// no new node
-		return std::make_pair(false, index - nodes.begin());
+		return std::make_pair(false, index - graphNodes.begin());
 	}
 
 	private:
@@ -119,20 +114,21 @@ class State {
 
 		std::vector<std::string> nodesCreated;
 
-		auto srcNode = getOrInsertNode(src);
+		auto srcNode = getOrInsertNode(graphName, src);
 		if (srcNode.first) {
 			nodesCreated.push_back(src);
 		}
 
-		auto targetNode = getOrInsertNode(target);
+		auto targetNode = getOrInsertNode(graphName, target);
 		if (targetNode.first) {
 			nodesCreated.push_back(target);
 		}
 
 		auto edgeDesc = addEdge(graphName, srcNode.second, srcProps, targetNode.second,
                 targetProps, edgeProps);
-        assert(nodes[edgeDesc.first.m_source] == src);
-        assert(nodes[edgeDesc.first.m_target] == target);
+        const NodeNameMap& graphNodes = nodes[graphName];
+        assert(graphNodes[edgeDesc.first.m_source] == src);
+        assert(graphNodes[edgeDesc.first.m_target] == target);
         return edgeDesc;
 	}
 };

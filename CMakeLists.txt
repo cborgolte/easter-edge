@@ -10,7 +10,7 @@ include_directories("../crow/include")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++1y -pedantic -Wextra")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-add_executable(EasterEdge main.cpp)
+add_executable(EasterEdge state.cpp main.cpp)
 
 target_link_libraries(EasterEdge
   ${Boost_FILESYSTEM_LIBRARY}
